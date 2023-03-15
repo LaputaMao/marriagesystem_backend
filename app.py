@@ -54,15 +54,17 @@ def login():  # put application's code here
         _username = request.form.get('username', type=str)  # form取post方式参数
         _password = request.form.get('password', type=str)
 
+        print(_username, _password)
+
         _user = CipherTable.query.filter_by(username=_username).first()
         if _user is not None:
             if _user.password == _password:
                 _token = jwtForApp.create_token(_username, _password)
-                return {"code": 200, "message": "success", "data": {"token": _token}}
+                return {"code": 200, "message": "登录成功", "data": {"token": _token}}
             else:
                 return {"code": 501, "message": "密码错误"}
         else:
-            return {"code": 501, "message": "用户不存在"}
+            return {"code": 502, "message": "用户不存在"}
 
 
 # 注册
