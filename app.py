@@ -1,6 +1,7 @@
 from flask import Flask, request, g, Flask, current_app, jsonify
 from flask_sqlalchemy import SQLAlchemy
 import jwtForApp
+import os
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = 'mysql+pymysql://root:626626@127.0.0.1:3306/marriagesystem'
@@ -11,6 +12,7 @@ app.config['SQLALCHEMY_ECHO'] = True
 db = SQLAlchemy(app)
 
 
+# 密码表
 class CipherTable(db.Model):
     __tablename__ = 'ciphertable'
     uuid = db.Column(db.Integer, primary_key=True)
@@ -35,6 +37,36 @@ class CipherTable(db.Model):
     #         return False
 
 
+# 筛选信息表
+class DisplayInfo(db.Model):
+    __tablename__ = 'displayinfo'
+    id = db.Column(db.Integer, primary_key=True)
+    # 唯一约束需要在数据库表中设置
+    username = db.Column('username', db.String(32), unique=True)
+    constellation = db.Column(db.String(32))
+    image = db.Column(db.String(32), unique=True)
+    favorbook = db.Column(db.String(32))
+    favorsong = db.Column(db.String(32))
+    favormovie = db.Column(db.String(32))
+    monologue = db.Column(db.String(255))
+    tel = db.Column(db.String(255), unique=True)
+
+    def __init__(self, username, constellation, image, favorbook, favorsong, favormovie, monologue, tel):
+        self.username = username
+        self.constellation = constellation
+        self.image = image
+        self.favorbook = favorbook
+        self.favorsong = favorsong
+        self.favormovie = favormovie
+        self.monologue = monologue
+        self.tel = tel
+
+    def __repr__(self):
+        return '<tel %r>' % self.tel
+
+        # 展示信息表
+
+
 # 装饰器-在处理请求之前验证token
 @app.before_request
 def authentication():
@@ -54,7 +86,7 @@ def login():  # put application's code here
         _username = request.form.get('username', type=str)  # form取post方式参数
         _password = request.form.get('password', type=str)
 
-        print(_username, _password)
+        # print(_username, _password)
 
         _user = CipherTable.query.filter_by(username=_username).first()
         if _user is not None:
@@ -87,12 +119,25 @@ def sign_up():
             return {"code": 501, "message": "用户名已存在"}
 
 
+# 个人中心
+
+
 # 在需要登陆权限的页面启用token验证-login_requried
 @app.route('/main', methods=['get', 'post'])
 @jwtForApp.login_required
 def main():
     username = g.username
     return username
+
+
+# 测试新建模型类与mysql的链接
+@app.route('/testsql', methods=['get', 'post'])
+def testsql():
+    display = DisplayInfo("柳非烟", "双鱼", "../..", "巴黎圣母院", "难忘今宵", "《肖申克的救赎》", "独白", "13533353335")
+    db.session.add(display)
+    db.session.commit()
+    print(display)
+    return "ok"
 
 
 if __name__ == '__main__':
