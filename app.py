@@ -64,10 +64,48 @@ class DisplayInfo(db.Model):
     def __repr__(self):
         return '<tel %r>' % self.tel
 
-        # 展示信息表
+
+# 展示信息表
+class FilterInfo(db.Model):
+    __tablename__ = 'filterinfo'
+    id = db.Column(db.Integer, primary_key=True)
+    # 唯一约束需要在数据库表中设置
+    username = db.Column('username', db.String(32), unique=True)
+    gender = db.Column(db.String(32))
+    edubackground = db.Column(db.String(32))
+    workprovince = db.Column(db.String(32))
+    nativeprovince = db.Column(db.String(32))
+    salary = db.Column(db.String(32))
+    marital = db.Column(db.String(32))
+    nationality = db.Column(db.String(32))
+    occupation = db.Column(db.String(32))
+    houseornot = db.Column(db.String(32))
+    carornot = db.Column(db.String(32))
+    drinkornot = db.Column(db.String(32))
+    specialty = db.Column(db.String(32))
+
+    def __init__(self, username, gender, edubackground, workprovince, nativeprovince, salary, marital, nationality,
+                 occupation, houseornot, carornot, drinkornot, specialty):
+        self.username = username
+        self.gender = gender
+        self.edubackground = edubackground
+        self.workprovince = workprovince
+        self.nativeprovince = nativeprovince
+        self.salary = salary
+        self.marital = marital
+        self.nationality = nationality
+        self.occupation = occupation
+        self.houseornot = houseornot
+        self.carornot = carornot
+        self.drinkornot = drinkornot
+        self.specialty = specialty
+
+    def __repr__(self):
+        return '<nationality %r>' % self.nationality
+
+        # 装饰器-在处理请求之前验证token
 
 
-# 装饰器-在处理请求之前验证token
 @app.before_request
 def authentication():
     jwtForApp.jwt_authentication()
@@ -133,10 +171,12 @@ def main():
 # 测试新建模型类与mysql的链接
 @app.route('/testsql', methods=['get', 'post'])
 def testsql():
-    display = DisplayInfo("柳非烟", "双鱼", "../..", "巴黎圣母院", "难忘今宵", "《肖申克的救赎》", "独白", "13533353335")
-    db.session.add(display)
+    # display = DisplayInfo("柳非烟", "双鱼", "../..", "巴黎圣母院", "难忘今宵", "《肖申克的救赎》", "独白", "13533353335")
+    _filter = FilterInfo("柳非烟", "女", "本科", "北京", "江苏", "10000", "未婚", "汉族", "城市规划", "无", "无", "无",
+                         "唱歌")
+    db.session.add(_filter)
     db.session.commit()
-    print(display)
+    print(_filter)
     return "ok"
 
 
