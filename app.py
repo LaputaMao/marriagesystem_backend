@@ -110,7 +110,7 @@ class FilterInfo(db.Model):
         self.drinkornot = drinkornot
 
     def __repr__(self):
-        return '<nationality %r>' % self.nationality
+        return '<nationality %r>' % self.gender
 
     # 对数据模型添加处理方法to_dict，模型字段处理成list，将查询结果直接引用该方法
     def to_dict(self):
@@ -176,7 +176,12 @@ def sign_up():
         if _user is None:
             _add_user = CipherTable(_username, _password)
             db.session.add(_add_user)
-            db.session.commit()
+            try:
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                print(e)
+            # db.session.commit()
             return {"code": 200, "message": "注册成功"}
         else:
             return {"code": 501, "message": "用户名已存在"}
@@ -198,10 +203,10 @@ def get_base_info():
         _username = g.username
         # print("out out" + _username)
         """
-        # 方式1: 等值过滤器 关键字实参设置字段值  返回BaseQuery对象
+        方式1: 等值过滤器 关键字实参设置字段值  返回BaseQuery对象
         User.query.filter_by(id=4).all()
 
-        # 方式2: 复杂过滤器  参数为比较运算/函数引用等  返回BaseQuery对象
+        方式2: 复杂过滤器  参数为比较运算/函数引用等  返回BaseQuery对象
         User.query.filter(User.id == 4).first()
         """
 
@@ -223,6 +228,59 @@ def get_base_info():
 
 
 # 基本资料-post向后端发送资料
+@app.route('/personal/createbaseinfo', methods=['get', 'post'])
+@jwtForApp.login_required
+def create_base_info():
+    if request.method == 'GET':
+        return "use method post"
+    elif request.method == 'POST':
+        # 前端调用该接口即在无详细信息的情况下，故无需判断是否存在重复用户名
+        # username从token中解析出来，不需要从前端加参数
+        _username = g.username
+        _gender = request.form.get('gender', type=str)
+        _edubackground = request.form.get('edubackground', type=str)
+        _workprovince = request.form.get('workprovince', type=str)
+        _nativeprovince = request.form.get('nativeprovince', type=str)
+        _salary = request.form.get('salary', type=str)
+        _marital = request.form.get('marital', type=str)
+        _nationality = request.form.get('nationality', type=str)
+        _occupation = request.form.get('occupation', type=str)
+        _houseornot = request.form.get('houseornot', type=str)
+        _carornot = request.form.get('carornot', type=str)
+        _drinkornot = request.form.get('drinkornot', type=str)
+
+        _add_baseinfo = FilterInfo(_username, _gender, _edubackground, _workprovince, _nativeprovince, _salary,
+                                   _marital, _nationality, _occupation, _houseornot, _carornot, _drinkornot)
+        db.session.add(_add_baseinfo)
+        db.session.commit()
+        return {"code": 200, "message": "基础信息完善成功"}
+
+
+# 基本资料-post更新基本资料
+@app.route('/personal/updatebaseinfo', methods=['get', 'post'])
+@jwtForApp.login_required
+def update_base_info():
+    if request.method == 'GET':
+        return "use method post"
+    elif request.method == 'POST':
+        _username = g.username
+        _gender = request.form.get('gender', type=str)
+        _edubackground = request.form.get('edubackground', type=str)
+        _workprovince = request.form.get('workprovince', type=str)
+        _nativeprovince = request.form.get('nativeprovince', type=str)
+        _salary = request.form.get('salary', type=str)
+        _marital = request.form.get('marital', type=str)
+        _nationality = request.form.get('nationality', type=str)
+        _occupation = request.form.get('occupation', type=str)
+        _houseornot = request.form.get('houseornot', type=str)
+        _carornot = request.form.get('carornot', type=str)
+        _drinkornot = request.form.get('drinkornot', type=str)
+
+        _add_baseinfo = FilterInfo(_username, _gender, _edubackground, _workprovince, _nativeprovince, _salary,
+                                   _marital, _nationality, _occupation, _houseornot, _carornot, _drinkornot)
+        FilterInfo.query.filter(FilterInfo.id == 3).update(_add_baseinfo.to_dict())
+        db.session.commit()
+        return {"code": 200, "message": "基础信息修改成功"}
 
 
 # 在需要登陆权限的页面启用token验证-login_requried
