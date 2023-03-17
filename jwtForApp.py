@@ -58,12 +58,13 @@ def login_required(f):
                 return {'code': 401, 'message': 'token已失效'}, 401
             elif g.username == 2:
                 return {'code': 401, 'message': 'token认证失败'}, 401
-            elif g.username == 2:
+            elif g.username == 3:
                 return {'code': 401, 'message': '非法的token'}, 401
             else:
                 return f(*args, **kwargs)
         except BaseException as e:
-            return {'code': 401, 'message': '请先登录认证.'}, 401
+            # 通过e.args可以了解异常详情
+            return {'code': 402, 'message': e.args}, 401
 
     return wrapper
 
