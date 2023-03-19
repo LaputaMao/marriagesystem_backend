@@ -1,13 +1,26 @@
 from flask import Flask, request, g, Flask, current_app, jsonify
 from flask_sqlalchemy import SQLAlchemy
+import imgUpload
+from werkzeug.utils import secure_filename
+
 import jwtForApp
 import os
+from os import path
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = 'mysql+pymysql://root:626626@127.0.0.1:3306/marriagesystem'
 app.config["SQLALCHEMY_TRACE_MODIFICATIONS"] = False
 app.config["SECRET_KEY"] = "marriage_system"
 app.config['SQLALCHEMY_ECHO'] = True
+# app.config["BASE_DIR"] = path.abspath(path.dirname(__file__))
+BASE_DIR = path.abspath(path.dirname(__file__))
+app.config["MEDIA_PATH"] = path.join(BASE_DIR, "static", "img")
+# 图片上传路径
+
+# MEDIA_PATH = path.join(BASE_DIR, "static", "img")
+"""
+3.18更新状态码
+"""
 
 
 # 跨域支持
@@ -74,6 +87,19 @@ class DisplayInfo(db.Model):
 
     def __repr__(self):
         return '<tel %r>' % self.tel
+
+    def to_dict(self):
+        return {
+            "username": self.username,
+            "constellation": self.constellation,
+            "image": self.image,
+            "favorbook": self.favorbook,
+            "favorsong": self.favorsong,
+            "favormovie": self.favormovie,
+            "monologue": self.monologue,
+            "tel": self.tel,
+            "specialty": self.specialty,
+        }
 
 
 # 筛选信息表
@@ -155,11 +181,11 @@ def login():  # put application's code here
         if _user is not None:
             if _user.password == _password:
                 _token = jwtForApp.create_token(_username, _password)
-                return {"code": 200, "message": "登录成功", "data": {"token": _token}}
+                return {"code": 6200, "message": "登录成功", "data": {"token": _token}}
             else:
-                return {"code": 501, "message": "密码错误"}
+                return {"code": 6501, "message": "密码错误"}
         else:
-            return {"code": 502, "message": "用户不存在"}
+            return {"code": 6502, "message": "用户不存在"}
 
 
 # 注册
@@ -174,17 +200,27 @@ def sign_up():
         _user = CipherTable.query.filter_by(username=_username).first()
         # 添加新用户
         if _user is None:
+            # 注册成功时在所有包含username的表建立默认行
+            # 之后的提交数据改用update方法更新数据即可
             _add_user = CipherTable(_username, _password)
+            _add_baseinfo = FilterInfo(_username, "_gender", "_edubackground", "_workprovince", "_nativeprovince",
+                                       "_salary",
+                                       "_marital", "_nationality", "_occupation", "_houseornot", "_carornot",
+                                       "_drinkornot")
+            _add_displayinfo = DisplayInfo(_username, "_constellation", "_image", "_favorbook", "_favorsong",
+                                           "_favormovie", "_monologue", "_tel", "_specialty")
             db.session.add(_add_user)
+            db.session.add(_add_baseinfo)
+            db.session.add((_add_displayinfo))
             try:
                 db.session.commit()
             except Exception as e:
                 db.session.rollback()
                 print(e)
             # db.session.commit()
-            return {"code": 200, "message": "注册成功"}
+            return {"code": 6200, "message": "注册成功"}
         else:
-            return {"code": 501, "message": "用户名已存在"}
+            return {"code": 6501, "message": "用户名已存在"}
 
 
 # ##个人中心
@@ -213,16 +249,16 @@ def get_base_info():
         # 等值过滤器filter_by
         _baseinfo = FilterInfo.query.filter(FilterInfo.username == _username).first()
 
-        if _baseinfo is not None:
+        if _baseinfo.gender != "_gender":
             """
             _baseinfo是FilterInfo类的一个实例化对象，并不能与string类型进行拼接
              XXXprint("entry" + _baseinfo)是一个错误写法XXX
              会导致BaseException，由于get_base_info是由login_required进行装饰
              所以会return code 402
             """
-            return jsonify({"code": 200, "message": "请求成功", "data": _baseinfo.to_dict()})
+            return jsonify({"code": 6200, "message": "请求成功", "data": _baseinfo.to_dict()})
         else:
-            return {"code": 501, "message": "请先完善用户信息"}
+            return {"code": 6501, "message": "请先完善用户信息"}
     elif request.method == 'POST':
         return "use method GET"
 
@@ -231,6 +267,9 @@ def get_base_info():
 @app.route('/personal/createbaseinfo', methods=['get', 'post'])
 @jwtForApp.login_required
 def create_base_info():
+    """
+    3.19更新注册时创建默认行后便不再使用此接口
+    """
     if request.method == 'GET':
         return "use method post"
     elif request.method == 'POST':
@@ -253,7 +292,7 @@ def create_base_info():
                                    _marital, _nationality, _occupation, _houseornot, _carornot, _drinkornot)
         db.session.add(_add_baseinfo)
         db.session.commit()
-        return {"code": 200, "message": "基础信息完善成功"}
+        return {"code": 6200, "message": "基础信息完善成功"}
 
 
 # 基本资料-post更新基本资料
@@ -278,9 +317,42 @@ def update_base_info():
 
         _add_baseinfo = FilterInfo(_username, _gender, _edubackground, _workprovince, _nativeprovince, _salary,
                                    _marital, _nationality, _occupation, _houseornot, _carornot, _drinkornot)
-        FilterInfo.query.filter(FilterInfo.id == 3).update(_add_baseinfo.to_dict())
+
+        # 应用模型对象转换为list的函数整体更新
+        FilterInfo.query.filter(FilterInfo.username == _username).update(_add_baseinfo.to_dict())
         db.session.commit()
-        return {"code": 200, "message": "基础信息修改成功"}
+        return {"code": 6200, "message": "基础信息修改成功"}
+
+
+@app.route('/personal/imgupload', methods=['post'])
+@jwtForApp.login_required
+def img_upload():
+    _username = g.username
+    _file = request.files.get("file")
+
+    # 在更新之前删除原来头像
+
+    # 保存图片的同时返回唯一文件名
+    filename = imgUpload.img_upload(_file)
+    # print(filename)
+
+    db.session.commit()
+    return {"code": 6200, "message": _file.filename + " √"}
+
+
+@app.route('/imgtest', methods=['post'])
+def img_test():
+    import base64
+    file = request.files.get("file")
+
+    # print(request.files['file'])
+    # print(file.filename)
+    # basepath = path.abspath(path.dirname(__file__))
+    # upload_path = path.join(basepath, 'static', 'uploads', file.filename)
+    # file.save(upload_path)
+    filename = imgUpload.img_upload(file)
+    print(filename)
+    return {"code": 6200, "message": filename}
 
 
 # 在需要登陆权限的页面启用token验证-login_requried
