@@ -17,15 +17,25 @@ BASE_DIR = path.abspath(path.dirname(__file__))
 app.config["MEDIA_PATH"] = path.join(BASE_DIR, "static", "img")
 # 图片上传路径
 
-# MEDIA_PATH = path.join(BASE_DIR, "static", "img")
 """
 3.18更新状态码
+"""
+
+"""
+在请求头header中设置了了自定义的token字段，所以跨域请求就认为这是一个复杂的请求，他就会先进行预校验，
+也就是我们说的Options请求，等Options请求成功之后它才会进行post或者get请求，所以在发送Options请求的时候要校验请求头，
+我们的后台之前的设置的是resp.setheaders(Access-Control-Allow-Headers:'*')；
+前端预请求成功之后的POST请求默认带有content-type的请求头，所以要将这个也加入到验证中去，
+一旦自己设置了自定义请求头那么在服务端就不能统一放行设置为*,
+这样是不会通过校验的，所以如果自己有添加多个自定义的请求头那么在后端要一一列出来不能用*代替。
 """
 
 
 # 跨域支持
 def after_request(resp):
     resp.headers['Access-Control-Allow-Origin'] = '*'
+    resp.headers['Access-Control-Allow-Headers'] = '*'
+    resp.headers['Access-Control-Allow-Headers'] = 'token,content-type'
     return resp
 
 
@@ -335,7 +345,8 @@ def img_upload():
     # 保存图片的同时返回唯一文件名
     filename = imgUpload.img_upload(_file)
     # print(filename)
-
+    
+    DisplayInfo.query.filter(DisplayInfo.username == _username).update({'image': filename})
     db.session.commit()
     return {"code": 6200, "message": _file.filename + " √"}
 
@@ -352,6 +363,7 @@ def img_test():
     # file.save(upload_path)
     filename = imgUpload.img_upload(file)
     print(filename)
+    # DisplayInfo.query.filter(DisplayInfo.username == _username).update({'image': filename})
     return {"code": 6200, "message": filename}
 
 
