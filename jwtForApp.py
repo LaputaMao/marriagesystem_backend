@@ -63,7 +63,7 @@ def login_required(f):
             else:
                 return f(*args, **kwargs)
         except BaseException as e:
-            # 通过e.args可以了解异常详情
+            # 通过e.args可以了解异常详情，甚至是被login_required装饰的函数中的异常、错误
             return {'code': 6402, 'message': e.args}, 401
 
     return wrapper

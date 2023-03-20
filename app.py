@@ -1,4 +1,4 @@
-from flask import Flask, request, g, Flask, current_app, jsonify
+from flask import Flask, request, g, Flask, current_app, jsonify, make_response
 from flask_sqlalchemy import SQLAlchemy
 import imgUpload
 from werkzeug.utils import secure_filename
@@ -334,6 +334,7 @@ def update_base_info():
         return {"code": 6200, "message": "基础信息修改成功"}
 
 
+# 基本资料-上传单个图片（头像）
 @app.route('/personal/imgupload', methods=['post'])
 @jwtForApp.login_required
 def img_upload():
@@ -345,10 +346,38 @@ def img_upload():
     # 保存图片的同时返回唯一文件名
     filename = imgUpload.img_upload(_file)
     # print(filename)
-    
+
     DisplayInfo.query.filter(DisplayInfo.username == _username).update({'image': filename})
     db.session.commit()
     return {"code": 6200, "message": _file.filename + " √"}
+
+
+# 基本资料-获取单个图片（头像）
+@app.route('/personal/imgget', methods=['get'])
+@jwtForApp.login_required
+def img_get():
+    _username = g.username
+
+    # 从配置文件中读出文件储存路径
+    _media_path = current_app.config['MEDIA_PATH']
+
+    # 根据用户名查找对应头像（文件名）
+    display_info = DisplayInfo.query.filter(DisplayInfo.username == _username).first()
+    # print(type(display_info.image))
+    _img_filename = display_info.image
+
+    # 拼接图片路径
+    _img_path = path.join(_media_path, _img_filename)
+
+    # 按照二进制方式打开文件，读到的内容为二进制文件流
+    try:
+        with open(_img_path, 'rb') as bfile:
+            bimg = bfile.read()
+    except FileNotFoundError:
+        return None, 404
+    resp = make_response(bimg)
+    resp.headers['Content-Type'] = 'image/png'
+    return resp
 
 
 @app.route('/imgtest', methods=['post'])
