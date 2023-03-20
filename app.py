@@ -353,31 +353,43 @@ def img_upload():
 
 
 # 基本资料-获取单个图片（头像）
-@app.route('/personal/imgget', methods=['get'])
-@jwtForApp.login_required
-def img_get():
-    _username = g.username
+"""
+3.20取消getimg的token验证，改变为根据用户名进行查询的接口，
+用于用户获取自己的头像以及其他用户获取该用户的头像
+"""
 
+
+@app.route('/personal/imgget', methods=['get'])
+# @jwtForApp.login_required
+def img_get():
+    # _username = g.username
+    _username = request.args.get("username")
+    # print(_username)
+    # print(type(_username))
     # 从配置文件中读出文件储存路径
     _media_path = current_app.config['MEDIA_PATH']
 
     # 根据用户名查找对应头像（文件名）
     display_info = DisplayInfo.query.filter(DisplayInfo.username == _username).first()
     # print(type(display_info.image))
-    _img_filename = display_info.image
+    if display_info is not None:
+        _img_filename = display_info.image
 
-    # 拼接图片路径
-    _img_path = path.join(_media_path, _img_filename)
+        # 拼接图片路径
+        _img_path = path.join(_media_path, _img_filename)
 
-    # 按照二进制方式打开文件，读到的内容为二进制文件流
-    try:
-        with open(_img_path, 'rb') as bfile:
-            bimg = bfile.read()
-    except FileNotFoundError:
-        return None, 404
-    resp = make_response(bimg)
-    resp.headers['Content-Type'] = 'image/png'
-    return resp
+        # 按照二进制方式打开文件，读到的内容为二进制文件流
+        try:
+            with open(_img_path, 'rb') as bfile:
+                bimg = bfile.read()
+        except FileNotFoundError:
+            return None, 404
+        resp = make_response(bimg)
+        resp.headers['Content-Type'] = 'image/png'
+        # resp.headers['response-Type'] = 'blob'
+        return resp
+    else:
+        return {"code": 6501, "message": "用户不存在"}
 
 
 @app.route('/imgtest', methods=['post'])
