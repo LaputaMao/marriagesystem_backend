@@ -84,10 +84,10 @@ class DisplayInfo(db.Model):
     tel = db.Column(db.String(255), unique=True)
     specialty = db.Column(db.String(32))
 
-    def __init__(self, username, constellation, image, favorbook, favorsong, favormovie, monologue, tel, specialty):
+    def __init__(self, username, constellation, favorbook, favorsong, favormovie, monologue, tel, specialty):
         self.username = username
         self.constellation = constellation
-        self.image = image
+        # self.image = image
         self.favorbook = favorbook
         self.favorsong = favorsong
         self.favormovie = favormovie
@@ -102,7 +102,7 @@ class DisplayInfo(db.Model):
         return {
             "username": self.username,
             "constellation": self.constellation,
-            "image": self.image,
+            # "image": self.image,
             "favorbook": self.favorbook,
             "favorsong": self.favorsong,
             "favormovie": self.favormovie,
@@ -278,7 +278,7 @@ def get_base_info():
 @jwtForApp.login_required
 def create_base_info():
     """
-    3.19更新注册时创建默认行后便不再使用此接口
+    XXXXXXXXXXX 3.19更新注册时创建默认行后便不再使用此接口 XXXXXXXXXXXXXXX
     """
     if request.method == 'GET':
         return "use method post"
@@ -390,6 +390,43 @@ def img_get():
         return resp
     else:
         return {"code": 6501, "message": "用户不存在"}
+
+
+# 详细资料-get获取后端资料
+@app.route('/personal/getdisplayinfo', methods=['get'])
+@jwtForApp.login_required
+def get_display_info():
+    _username = g.username
+    _display_info = DisplayInfo.query.filter(DisplayInfo.username == _username).first()
+
+    if _display_info.constellation != "_constellation":
+        return jsonify({"code": 6200, "message": "请求成功", "data": _display_info.to_dict()})
+    else:
+        return {"code": 6501, "message": "请先完善详细信息"}
+
+
+# 详细资料-更新后端资料
+@app.route('/personal/updatedisplayinfo', methods=['post'])
+@jwtForApp.login_required
+def update_display_info():
+    _username = g.username
+    _constellation = request.form.get('constellation', type=str)
+    # _image调用其他接口
+    _favorbook = request.form.get('favorbook', type=str)
+    _favorsong = request.form.get('favorsong', type=str)
+    _favormovie = request.form.get('favormovie', type=str)
+    _monologue = request.form.get('monologue', type=str)
+    _tel = request.form.get('tel', type=str)
+    _specialty = request.form.get('specialty', type=str)
+
+    _display_info = DisplayInfo(_username, _constellation, _favorbook, _favorsong, _favormovie, _monologue, _tel,
+                                _specialty)
+    DisplayInfo.query.filter(DisplayInfo.username == _username).update(_display_info.to_dict())
+    db.session.commit()
+    if _display_info.constellation != "_constellation":
+        return jsonify({"code": 6200, "message": "请求成功", "data": _display_info.to_dict()})
+    else:
+        return {"code": 6501, "message": "请先完善详细信息"}
 
 
 @app.route('/imgtest', methods=['post'])
