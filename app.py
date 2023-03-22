@@ -84,10 +84,10 @@ class DisplayInfo(db.Model):
     tel = db.Column(db.String(255), unique=True)
     specialty = db.Column(db.String(32))
 
-    def __init__(self, username, constellation, favorbook, favorsong, favormovie, monologue, tel, specialty):
+    def __init__(self, username, constellation, image, favorbook, favorsong, favormovie, monologue, tel, specialty):
         self.username = username
         self.constellation = constellation
-        # self.image = image
+        self.image = image
         self.favorbook = favorbook
         self.favorsong = favorsong
         self.favormovie = favormovie
@@ -166,6 +166,60 @@ class FilterInfo(db.Model):
         }
 
 
+# 择偶条件表
+# 择偶条件表也需要在密码表生成列时同时生成
+class MatingCondition(db.Model):
+    __tablename__ = 'matingcondition'
+    id = db.Column(db.Integer, primary_key=True)
+    # 唯一约束需要在数据库表中设置
+    username = db.Column('username', db.String(32), unique=True)
+    gender = db.Column(db.String(32))
+    edubackground = db.Column(db.String(32))
+    workprovince = db.Column(db.String(32))
+    nativeprovince = db.Column(db.String(32))
+    salary = db.Column(db.String(32))
+    marital = db.Column(db.String(32))
+    nationality = db.Column(db.String(32))
+    occupation = db.Column(db.String(32))
+    houseornot = db.Column(db.String(32))
+    carornot = db.Column(db.String(32))
+    drinkornot = db.Column(db.String(32))
+
+    def __init__(self, username, gender, edubackground, workprovince, nativeprovince, salary, marital, nationality,
+                 occupation, houseornot, carornot, drinkornot):
+        self.username = username
+        self.gender = gender
+        self.edubackground = edubackground
+        self.workprovince = workprovince
+        self.nativeprovince = nativeprovince
+        self.salary = salary
+        self.marital = marital
+        self.nationality = nationality
+        self.occupation = occupation
+        self.houseornot = houseornot
+        self.carornot = carornot
+        self.drinkornot = drinkornot
+
+    def __repr__(self):
+        return '<gender %r>' % self.gender
+
+    def to_dict(self):
+        return {
+            "username": self.username,
+            "gender": self.gender,
+            "edubackground": self.edubackground,
+            "workprovince": self.workprovince,
+            "nativeprovince": self.nativeprovince,
+            "salary": self.salary,
+            "marital": self.marital,
+            "nationality": self.nationality,
+            "occupation": self.occupation,
+            "houseornot": self.houseornot,
+            "carornot": self.carornot,
+            "drinkornot": self.drinkornot,
+        }
+
+
 # 装饰器-在处理请求之前验证token
 @app.before_request
 def authentication():
@@ -210,18 +264,29 @@ def sign_up():
         _user = CipherTable.query.filter_by(username=_username).first()
         # 添加新用户
         if _user is None:
-            # 注册成功时在所有包含username的表建立默认行
-            # 之后的提交数据改用update方法更新数据即可
+            """
+            注册成功时在所有包含username的表建立默认行
+            之后的提交数据改用update方法更新数据即可
+            设置用户初始头像为默认头像default.png
+            """
+
             _add_user = CipherTable(_username, _password)
             _add_baseinfo = FilterInfo(_username, "_gender", "_edubackground", "_workprovince", "_nativeprovince",
                                        "_salary",
                                        "_marital", "_nationality", "_occupation", "_houseornot", "_carornot",
                                        "_drinkornot")
-            _add_displayinfo = DisplayInfo(_username, "_constellation", "_image", "_favorbook", "_favorsong",
+            _add_displayinfo = DisplayInfo(_username, "_constellation", "default.png", "_favorbook", "_favorsong",
                                            "_favormovie", "_monologue", "_tel", "_specialty")
+            _add_matingcondition = MatingCondition(_username, "_gender", "_edubackground", "_workprovince",
+                                                   "_nativeprovince",
+                                                   "_salary",
+                                                   "_marital", "_nationality", "_occupation", "_houseornot",
+                                                   "_carornot",
+                                                   "_drinkornot")
             db.session.add(_add_user)
             db.session.add(_add_baseinfo)
-            db.session.add((_add_displayinfo))
+            db.session.add(_add_displayinfo)
+            db.session.add(_add_matingcondition)
             try:
                 db.session.commit()
             except Exception as e:
@@ -418,15 +483,56 @@ def update_display_info():
     _monologue = request.form.get('monologue', type=str)
     _tel = request.form.get('tel', type=str)
     _specialty = request.form.get('specialty', type=str)
+    # 先将image取出来，同新数据一同放入新的对象
+    _image_object = DisplayInfo.query.filter(DisplayInfo.username == _username).first()
 
-    _display_info = DisplayInfo(_username, _constellation, _favorbook, _favorsong, _favormovie, _monologue, _tel,
+    _display_info = DisplayInfo(_username, _constellation, _image_object.image, _favorbook, _favorsong, _favormovie,
+                                _monologue, _tel,
                                 _specialty)
     DisplayInfo.query.filter(DisplayInfo.username == _username).update(_display_info.to_dict())
     db.session.commit()
     if _display_info.constellation != "_constellation":
-        return jsonify({"code": 6200, "message": "请求成功", "data": _display_info.to_dict()})
+        return jsonify({"code": 6200, "message": "详细信息更新成功"})
     else:
-        return {"code": 6501, "message": "请先完善详细信息"}
+        return {"code": 6501, "message": "详细信息不完整"}
+
+
+# 择偶条件-get获取后端资料
+@app.route('/personal/getmatingcondition', methods=['get'])
+@jwtForApp.login_required
+def get_mating_condition():
+    _username = g.username
+    _mating_condition = MatingCondition.query.filter(MatingCondition.username == _username).first()
+    if _mating_condition.gender != "_gender":
+        return jsonify({"code": 6200, "message": "请求成功", "data": _mating_condition.to_dict()})
+    else:
+        return {"code": 6501, "message": "请先完善择偶条件"}
+
+
+# 择偶条件-更新后端资料
+@app.route('/personal/updatematingcondition', methods=['post'])
+@jwtForApp.login_required
+def update_mating_condition():
+    _username = g.username
+    _gender = request.form.get('gender', type=str)
+    _edubackground = request.form.get('edubackground', type=str)
+    _workprovince = request.form.get('workprovince', type=str)
+    _nativeprovince = request.form.get('nativeprovince', type=str)
+    _salary = request.form.get('salary', type=str)
+    _marital = request.form.get('marital', type=str)
+    _nationality = request.form.get('nationality', type=str)
+    _occupation = request.form.get('occupation', type=str)
+    _houseornot = request.form.get('houseornot', type=str)
+    _carornot = request.form.get('carornot', type=str)
+    _drinkornot = request.form.get('drinkornot', type=str)
+
+    _add_matingcondition = MatingCondition(_username, _gender, _edubackground, _workprovince, _nativeprovince, _salary,
+                                           _marital, _nationality, _occupation, _houseornot, _carornot, _drinkornot)
+
+    # 应用模型对象转换为list的函数整体更新
+    MatingCondition.query.filter(MatingCondition.username == _username).update(_add_matingcondition.to_dict())
+    db.session.commit()
+    return {"code": 6200, "message": "基础信息修改成功"}
 
 
 @app.route('/imgtest', methods=['post'])
@@ -458,10 +564,12 @@ def main():
 @app.route('/testsql', methods=['get', 'post'])
 def testsql():
     # display = DisplayInfo("柳非烟", "双鱼", "../..", "巴黎圣母院", "难忘今宵", "《肖申克的救赎》", "独白", "13533353335","唱歌")
-    _filter = FilterInfo("柳非烟", "女", "本科", "北京", "江苏", "10000", "未婚", "汉族", "城市规划", "无", "无", "无")
-    db.session.add(_filter)
+    # _filter = FilterInfo("柳非烟", "女", "本科", "北京", "江苏", "10000", "未婚", "汉族", "城市规划", "无", "无", "无")
+    _mating = MatingCondition("杨过", "男", "本科", "北京", "江苏", "10000", "未婚", "汉族", "城市规划", "无", "无",
+                              "无")
+    db.session.add(_mating)
     db.session.commit()
-    print(_filter)
+    print(_mating)
     return "ok"
 
 
