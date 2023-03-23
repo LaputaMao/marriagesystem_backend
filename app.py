@@ -112,6 +112,11 @@ class DisplayInfo(db.Model):
         }
 
 
+"""
+3.23将年龄、身高更新至筛选信息表中
+"""
+
+
 # 筛选信息表
 class FilterInfo(db.Model):
     __tablename__ = 'filterinfo'
@@ -119,6 +124,10 @@ class FilterInfo(db.Model):
     # 唯一约束需要在数据库表中设置
     username = db.Column('username', db.String(32), unique=True)
     gender = db.Column(db.String(32))
+    # 3.23新增列名
+    age = db.Column(db.String(32))
+    height = db.Column(db.String(32))
+
     edubackground = db.Column(db.String(32))
     workprovince = db.Column(db.String(32))
     nativeprovince = db.Column(db.String(32))
@@ -130,10 +139,13 @@ class FilterInfo(db.Model):
     carornot = db.Column(db.String(32))
     drinkornot = db.Column(db.String(32))
 
-    def __init__(self, username, gender, edubackground, workprovince, nativeprovince, salary, marital, nationality,
+    def __init__(self, username, gender, age, height, edubackground, workprovince, nativeprovince, salary, marital,
+                 nationality,
                  occupation, houseornot, carornot, drinkornot):
         self.username = username
         self.gender = gender
+        self.age = age
+        self.height = height
         self.edubackground = edubackground
         self.workprovince = workprovince
         self.nativeprovince = nativeprovince
@@ -153,6 +165,8 @@ class FilterInfo(db.Model):
         return {
             "username": self.username,
             "gender": self.gender,
+            "age": self.age,
+            "height": self.height,
             "edubackground": self.edubackground,
             "workprovince": self.workprovince,
             "nativeprovince": self.nativeprovince,
@@ -166,14 +180,26 @@ class FilterInfo(db.Model):
         }
 
 
+"""
+在此处建立两个to_dict函数，
+一个用于post方法时更新批量导入用（拼接montage）
+另一用于get方法向前端发送数据（拆分split）
+"""
+
+
 # 择偶条件表
 # 择偶条件表也需要在密码表生成列时同时生成
+
 class MatingCondition(db.Model):
     __tablename__ = 'matingcondition'
     id = db.Column(db.Integer, primary_key=True)
     # 唯一约束需要在数据库表中设置
     username = db.Column('username', db.String(32), unique=True)
     gender = db.Column(db.String(32))
+    # 新增年龄、身高range
+    age = db.Column(db.String(32))
+    height = db.Column(db.String(32))
+
     edubackground = db.Column(db.String(32))
     workprovince = db.Column(db.String(32))
     nativeprovince = db.Column(db.String(32))
@@ -185,10 +211,13 @@ class MatingCondition(db.Model):
     carornot = db.Column(db.String(32))
     drinkornot = db.Column(db.String(32))
 
-    def __init__(self, username, gender, edubackground, workprovince, nativeprovince, salary, marital, nationality,
+    def __init__(self, username, gender, age, height, edubackground, workprovince, nativeprovince, salary, marital,
+                 nationality,
                  occupation, houseornot, carornot, drinkornot):
         self.username = username
         self.gender = gender
+        self.age = age
+        self.height = height
         self.edubackground = edubackground
         self.workprovince = workprovince
         self.nativeprovince = nativeprovince
@@ -203,10 +232,38 @@ class MatingCondition(db.Model):
     def __repr__(self):
         return '<gender %r>' % self.gender
 
-    def to_dict(self):
+    def to_dict_split(self):
+        _age_list = self.age.split(',')
+        _age_from = _age_list[0]
+        _age_to = _age_list[1]
+        _height_list = self.height.split(',')
+        _height_from = _height_list[0]
+        _height_to = _height_list[1]
         return {
             "username": self.username,
             "gender": self.gender,
+            "agefrom": _age_from,
+            "ageto": _age_to,
+            "heightfrom": _height_from,
+            "heightto": _height_to,
+            "edubackground": self.edubackground,
+            "workprovince": self.workprovince,
+            "nativeprovince": self.nativeprovince,
+            "salary": self.salary,
+            "marital": self.marital,
+            "nationality": self.nationality,
+            "occupation": self.occupation,
+            "houseornot": self.houseornot,
+            "carornot": self.carornot,
+            "drinkornot": self.drinkornot,
+        }
+
+    def to_dict_montage(self):
+        return {
+            "username": self.username,
+            "gender": self.gender,
+            "age": self.age,
+            "height": self.height,
             "edubackground": self.edubackground,
             "workprovince": self.workprovince,
             "nativeprovince": self.nativeprovince,
@@ -268,16 +325,20 @@ def sign_up():
             注册成功时在所有包含username的表建立默认行
             之后的提交数据改用update方法更新数据即可
             设置用户初始头像为默认头像default.png
+            
+            3.23更新列名需更新初始化
             """
 
             _add_user = CipherTable(_username, _password)
-            _add_baseinfo = FilterInfo(_username, "_gender", "_edubackground", "_workprovince", "_nativeprovince",
+            _add_baseinfo = FilterInfo(_username, "_gender", "_age", "_height", "_edubackground", "_workprovince",
+                                       "_nativeprovince",
                                        "_salary",
                                        "_marital", "_nationality", "_occupation", "_houseornot", "_carornot",
                                        "_drinkornot")
             _add_displayinfo = DisplayInfo(_username, "_constellation", "default.png", "_favorbook", "_favorsong",
                                            "_favormovie", "_monologue", "_tel", "_specialty")
-            _add_matingcondition = MatingCondition(_username, "_gender", "_edubackground", "_workprovince",
+            _add_matingcondition = MatingCondition(_username, "_gender", "_age", "_height", "_edubackground",
+                                                   "_workprovince",
                                                    "_nativeprovince",
                                                    "_salary",
                                                    "_marital", "_nationality", "_occupation", "_houseornot",
@@ -352,6 +413,8 @@ def create_base_info():
         # username从token中解析出来，不需要从前端加参数
         _username = g.username
         _gender = request.form.get('gender', type=str)
+        _age = request.form.get('age', type=str)
+        _height = request.form.get('height', type=str)
         _edubackground = request.form.get('edubackground', type=str)
         _workprovince = request.form.get('workprovince', type=str)
         _nativeprovince = request.form.get('nativeprovince', type=str)
@@ -363,7 +426,8 @@ def create_base_info():
         _carornot = request.form.get('carornot', type=str)
         _drinkornot = request.form.get('drinkornot', type=str)
 
-        _add_baseinfo = FilterInfo(_username, _gender, _edubackground, _workprovince, _nativeprovince, _salary,
+        _add_baseinfo = FilterInfo(_username, _gender, _age, _height, _edubackground, _workprovince, _nativeprovince,
+                                   _salary,
                                    _marital, _nationality, _occupation, _houseornot, _carornot, _drinkornot)
         db.session.add(_add_baseinfo)
         db.session.commit()
@@ -379,6 +443,8 @@ def update_base_info():
     elif request.method == 'POST':
         _username = g.username
         _gender = request.form.get('gender', type=str)
+        _age = request.form.get('age', type=str)
+        _height = request.form.get('height', type=str)
         _edubackground = request.form.get('edubackground', type=str)
         _workprovince = request.form.get('workprovince', type=str)
         _nativeprovince = request.form.get('nativeprovince', type=str)
@@ -390,7 +456,8 @@ def update_base_info():
         _carornot = request.form.get('carornot', type=str)
         _drinkornot = request.form.get('drinkornot', type=str)
 
-        _add_baseinfo = FilterInfo(_username, _gender, _edubackground, _workprovince, _nativeprovince, _salary,
+        _add_baseinfo = FilterInfo(_username, _gender, _age, _height, _edubackground, _workprovince, _nativeprovince,
+                                   _salary,
                                    _marital, _nationality, _occupation, _houseornot, _carornot, _drinkornot)
 
         # 应用模型对象转换为list的函数整体更新
@@ -503,8 +570,10 @@ def update_display_info():
 def get_mating_condition():
     _username = g.username
     _mating_condition = MatingCondition.query.filter(MatingCondition.username == _username).first()
+
+    # 取出对象后，进行age、height的数据拆分（在to_dict()中进行）
     if _mating_condition.gender != "_gender":
-        return jsonify({"code": 6200, "message": "请求成功", "data": _mating_condition.to_dict()})
+        return jsonify({"code": 6200, "message": "请求成功", "data": _mating_condition.to_dict_split()})
     else:
         return {"code": 6501, "message": "请先完善择偶条件"}
 
@@ -515,6 +584,10 @@ def get_mating_condition():
 def update_mating_condition():
     _username = g.username
     _gender = request.form.get('gender', type=str)
+    _agefrom = request.form.get('agefrom', type=str)
+    _ageto = request.form.get('ageto', type=str)
+    _heightfrom = request.form.get('heightfrom', type=str)
+    _heightto = request.form.get('heightto', type=str)
     _edubackground = request.form.get('edubackground', type=str)
     _workprovince = request.form.get('workprovince', type=str)
     _nativeprovince = request.form.get('nativeprovince', type=str)
@@ -526,11 +599,15 @@ def update_mating_condition():
     _carornot = request.form.get('carornot', type=str)
     _drinkornot = request.form.get('drinkornot', type=str)
 
-    _add_matingcondition = MatingCondition(_username, _gender, _edubackground, _workprovince, _nativeprovince, _salary,
+    # 接收前端的range数据，在此处进行拼接后再调用构造函数创建模型对象，存入数据库
+    _age = _agefrom + ',' + _ageto
+    _height = _heightfrom + ',' + _heightto
+    _add_matingcondition = MatingCondition(_username, _gender, _age, _height, _edubackground, _workprovince,
+                                           _nativeprovince, _salary,
                                            _marital, _nationality, _occupation, _houseornot, _carornot, _drinkornot)
 
     # 应用模型对象转换为list的函数整体更新
-    MatingCondition.query.filter(MatingCondition.username == _username).update(_add_matingcondition.to_dict())
+    MatingCondition.query.filter(MatingCondition.username == _username).update(_add_matingcondition.to_dict_montage())
     db.session.commit()
     return {"code": 6200, "message": "基础信息修改成功"}
 
@@ -564,12 +641,13 @@ def main():
 @app.route('/testsql', methods=['get', 'post'])
 def testsql():
     # display = DisplayInfo("柳非烟", "双鱼", "../..", "巴黎圣母院", "难忘今宵", "《肖申克的救赎》", "独白", "13533353335","唱歌")
-    # _filter = FilterInfo("柳非烟", "女", "本科", "北京", "江苏", "10000", "未婚", "汉族", "城市规划", "无", "无", "无")
-    _mating = MatingCondition("杨过", "男", "本科", "北京", "江苏", "10000", "未婚", "汉族", "城市规划", "无", "无",
-                              "无")
-    db.session.add(_mating)
+    _filter = FilterInfo("柳非烟", "女", "22", "166", "本科", "北京", "江苏", "10000", "未婚", "汉族", "城市规划", "无",
+                         "无", "无")
+    # _mating = MatingCondition("杨过", "男", "本科", "北京", "江苏", "10000", "未婚", "汉族", "城市规划", "无", "无",
+    #                           "无")
+    db.session.add(_filter)
     db.session.commit()
-    print(_mating)
+    print(_filter)
     return "ok"
 
 
