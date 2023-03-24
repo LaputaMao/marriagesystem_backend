@@ -1,5 +1,9 @@
+import json
+
 from flask import Flask, request, g, Flask, current_app, jsonify, make_response
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import or_
+
 import imgUpload
 from werkzeug.utils import secure_filename
 
@@ -610,6 +614,83 @@ def update_mating_condition():
     MatingCondition.query.filter(MatingCondition.username == _username).update(_add_matingcondition.to_dict_montage())
     db.session.commit()
     return {"code": 6200, "message": "基础信息修改成功"}
+
+
+"""
+3.23
+推荐的标准是符合用户择偶条件
+主页（推荐页面）每次请求8/10条数据，后端直接返回有关用户的全部（允许被其他用户查看的）FilterInfo数据
+在前端再用username请求headimg以及DisplayInfo
+点击card弹出新页面/dialogue展示用户其他信息（在recommend页面已经返回）
+recommend页card展示：username
+hover展示：username、age、height、workprovince
+"""
+
+
+# 推荐页面-获取主页推荐数据
+@app.route('/recommend/byusercondition', methods=['get'])
+@jwtForApp.login_required
+def recommend_by_user_condition():
+    _username = g.username
+    # 前端参数请求页码号
+    _page = request.args.get("page")
+    _per_page = request.args.get("per_page")
+    # _page = int(_page)
+    # 根据用户名在MatingCondition表中查出该用户的择偶条件
+    _mating_condition = MatingCondition.query.filter(MatingCondition.username == _username).first()
+
+    _age_list = _mating_condition.age.split(',')
+    _age_from = _age_list[0]
+    _age_to = _age_list[1]
+    _height_list = _mating_condition.height.split(',')
+    _height_from = _height_list[0]
+    _height_to = _height_list[1]
+    # print(_age_from, _age_to, _height_from, _height_to)
+    """
+    db.session.query(User).filter_by().paginate(page=None, per_page=None,error_out=True, max_per_page=None)
+    page 查询的页数
+    per_page 每页的条数
+    max_per_page 每页最大条数，有值时，per_page 受它影响
+    error_out 当值为 True 时，下列情况会报错:
+    当 page 为 1 时，找不到任何数据
+    page 小于 1，或者 per_page 为负数
+    page 或 per_page 不是整数
+    
+    has_next 如果下一页存在，返回 True
+    has_prev 如果上一页存在，返回 True
+    items 当前页的数据列表
+    next_num 下一页的页码
+    page 当前页码
+    pages 总页数
+    per_page 每页的条数
+    prev_num 上一页的页码
+    query 用于创建此分页对象的无限查询对象。
+    total 总条数
+    """
+    # print(type(_page))
+    page_odject = FilterInfo.query.filter(
+        FilterInfo.gender == _mating_condition.gender,
+        FilterInfo.age.between(_age_from, _age_to),
+        FilterInfo.height.between(_height_from, _height_to),
+
+        or_(FilterInfo.workprovince == _mating_condition.workprovince,
+            FilterInfo.nativeprovince == _mating_condition.nativeprovince)).paginate(
+        page=int(_page),
+        per_page=int(_per_page))
+    # 方法一
+    # 将filterinfo_list中每一个对象都取出来，分别调用to_dict(),最后储存到新表中
+    filterinfo_list_to_dict = []
+    for instance in page_odject.items:
+        filterinfo_list_to_dict.append(instance.to_dict())
+    # 方法二
+    # filterinfo_list_to_dict = list(map(lambda x:x.to_dict(),filterinfo_list))
+
+    return jsonify({"code": 6200, "message": "请求成功", "data": filterinfo_list_to_dict, "pages": page_odject.pages})
+
+
+"""
+以下是测试接口
+"""
 
 
 @app.route('/imgtest', methods=['post'])
