@@ -181,6 +181,41 @@ class FilterInfo(db.Model):
             "houseornot": self.houseornot,
             "carornot": self.carornot,
             "drinkornot": self.drinkornot,
+
+        }
+
+    # 推荐页面使用返回FilterInfo+DisplayInfo（image直接定义为完整url）
+    # 在声明函数时显式声明字典类型参数（:dict）避免将字典内的每个键值遍历一次传入
+    def to_dict_for_recommend(self, _displayinfo_odject: dict):
+        return {
+            "username": self.username,
+            "gender": self.gender,
+            "age": self.age,
+            "height": self.height,
+            "edubackground": self.edubackground,
+            "workprovince": self.workprovince,
+            "nativeprovince": self.nativeprovince,
+            "salary": self.salary,
+            "marital": self.marital,
+            "nationality": self.nationality,
+            "occupation": self.occupation,
+            "houseornot": self.houseornot,
+            "carornot": self.carornot,
+            "drinkornot": self.drinkornot,
+
+            # displayinfo：
+            # 方法一：
+            # dict_name['key']
+            # 方法二：
+            # dict.get(key, default=None)来获取字典内键值
+            "constellation": _displayinfo_odject["constellation"],
+            "image": "http://127.0.0.1:5000/personal/imgget?username=" + self.username,
+            "favorbook": _displayinfo_odject["favorbook"],
+            "favorsong": _displayinfo_odject["favorsong"],
+            "favormovie": _displayinfo_odject["favormovie"],
+            "monologue": _displayinfo_odject["monologue"],
+            "tel": _displayinfo_odject["tel"],
+            "specialty": _displayinfo_odject["specialty"],
         }
 
 
@@ -672,20 +707,26 @@ def recommend_by_user_condition():
         FilterInfo.gender == _mating_condition.gender,
         FilterInfo.age.between(_age_from, _age_to),
         FilterInfo.height.between(_height_from, _height_to),
-
         or_(FilterInfo.workprovince == _mating_condition.workprovince,
             FilterInfo.nativeprovince == _mating_condition.nativeprovince)).paginate(
         page=int(_page),
         per_page=int(_per_page))
     # 方法一
-    # 将filterinfo_list中每一个对象都取出来，分别调用to_dict(),最后储存到新表中
-    filterinfo_list_to_dict = []
+    # 将filterinfo_list中每一个对象都取出来，分别调用to_dict_for_recommend(),最后储存到新表中
+    # 在每个instance中都用sqlalchemy查询出对应用户的displayinfo利用to_dict_for_recommend()拼接到一起同时返回给前端
+    filter_display_list_to_dict = []
     for instance in page_odject.items:
-        filterinfo_list_to_dict.append(instance.to_dict())
+        # print(instance.username)
+        _display_info = DisplayInfo.query.filter(DisplayInfo.username == instance.username).first()
+        # 往to_dict_for_recommend()函数中传一个displayinfo类转换成的字典
+        filter_display_list_to_dict.append(instance.to_dict_for_recommend(_display_info.to_dict()))
     # 方法二
     # filterinfo_list_to_dict = list(map(lambda x:x.to_dict(),filterinfo_list))
-
-    return jsonify({"code": 6200, "message": "请求成功", "data": filterinfo_list_to_dict, "pages": page_odject.pages})
+    if filter_display_list_to_dict is not None:
+        return jsonify(
+            {"code": 6200, "message": "推荐请求成功", "data": filter_display_list_to_dict, "pages": page_odject.pages})
+    else:
+        return {"code": 6501, "message": "请求页为空"}
 
 
 """
