@@ -115,6 +115,34 @@ class DisplayInfo(db.Model):
             "specialty": self.specialty,
         }
 
+    def to_dict_for_search(self, _filter_object: dict):
+        return {
+            "username": self.username,
+            "constellation": self.constellation,
+            "image": "http://127.0.0.1:5000/personal/imgget?username=" + self.username,
+            "favorbook": self.favorbook,
+            "favorsong": self.favorsong,
+            "favormovie": self.favormovie,
+            "monologue": self.monologue,
+            "tel": self.tel,
+            "specialty": self.specialty,
+
+            # filterinfo:
+            "gender": _filter_object["gender"],
+            "age": _filter_object["age"],
+            "height": _filter_object["height"],
+            "edubackground": _filter_object["edubackground"],
+            "workprovince": _filter_object["workprovince"],
+            "nativeprovince": _filter_object["nativeprovince"],
+            "salary": _filter_object["salary"],
+            "marital": _filter_object["marital"],
+            "nationality": _filter_object["nationality"],
+            "occupation": _filter_object["occupation"],
+            "houseornot": _filter_object["houseornot"],
+            "carornot": _filter_object["carornot"],
+            "drinkornot": _filter_object["drinkornot"],
+        }
+
 
 """
 3.23将年龄、身高更新至筛选信息表中
@@ -725,6 +753,34 @@ def recommend_by_user_condition():
     if filter_display_list_to_dict is not None:
         return jsonify(
             {"code": 6200, "message": "推荐请求成功", "data": filter_display_list_to_dict, "pages": page_odject.pages})
+    else:
+        return {"code": 6501, "message": "请求页为空"}
+
+
+# 搜索页面-get获取搜索内容
+@app.route('/search', methods=['get'])
+@jwtForApp.login_required
+def search():
+    _username = g.username
+    querystr = request.args.get("querystr")
+    _page = request.args.get("page")
+    _per_page = request.args.get("per_page")
+    page_odject = DisplayInfo.query.filter(
+        or_(DisplayInfo.specialty.contains(querystr), DisplayInfo.monologue.contains(querystr))).paginate(
+        page=int(_page),
+        per_page=int(_per_page))
+    filter_display_list_to_dict = []
+    for instance in page_odject.items:
+        # print(instance.username)
+        _filter_info = FilterInfo.query.filter(FilterInfo.username == instance.username).first()
+        # print(_filter_info.to_dict())
+        filter_display_list_to_dict.append(instance.to_dict_for_search(_filter_info.to_dict()))
+        # print(filter_display_list_to_dict)
+
+    if filter_display_list_to_dict is not None:
+        return jsonify(
+            {"code": 6200, "message": "推荐请求成功", "data": filter_display_list_to_dict,
+             "pages": page_odject.pages})
     else:
         return {"code": 6501, "message": "请求页为空"}
 
